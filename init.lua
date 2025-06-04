@@ -329,6 +329,8 @@ require("lazy").setup({
 							lua = { "stylua" },
 							python = { "ruff_organize_imports", "ruff_format", "ruff_fix" },
 							rust = { "rustfmt" },
+							c = { "clang-format" },
+							cpp = { "clang-format" },
 						},
 						format_on_save = {
 							lsp_fallback = true,
