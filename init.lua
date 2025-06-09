@@ -8,8 +8,8 @@ opt.relativenumber = true -- show relative line numbers
 opt.number = true -- shows absolute line number on cursor line (when relative number is on)
 
 -- tabs & indentation
-opt.tabstop = 2 -- 2 spaces for tabs (prettier default)
-opt.shiftwidth = 2 -- 2 spaces for indent width
+opt.tabstop = 4 -- 4 spaces for tabs (prettier default)
+opt.shiftwidth = 4 -- 4 spaces for indent width
 opt.expandtab = true -- expand tab to spaces
 opt.autoindent = true -- copy indent from current line when starting new one
 
@@ -120,7 +120,7 @@ require("lazy").setup({
 					vim.g.loaded_netrwPlugin = 1
 					nvimtree.setup({
 						view = { width = 35, relativenumber = true },
-						git = { enable = true, ignore = false, timeout = 400 }, -- Shows gitignored files
+						git = { enable = true, ignore = false, timeout = 1500 }, -- Shows gitignored files
 					})
 					-- set keymaps for nvim-tree
 					keymap.set("n", "<leader>ee", "<cmd>NvimTreeToggle<CR>", { desc = "Toggle file explorer" }) -- toggle file explorer
@@ -132,6 +132,22 @@ require("lazy").setup({
 					) -- toggle file explorer on current file
 					keymap.set("n", "<leader>ec", "<cmd>NvimTreeCollapse<CR>", { desc = "Collapse file explorer" }) -- collapse file explorer
 					keymap.set("n", "<leader>er", "<cmd>NvimTreeRefresh<CR>", { desc = "Refresh file explorer" }) -- Refresh file explorer
+				end,
+			},
+			{
+				"folke/todo-comments.nvim",
+				dependencies = { "nvim-lua/plenary.nvim" },
+				opts = {},
+				config = function()
+					local todo = require("todo-comments")
+					todo.setup({
+						keywords = {
+							NOTE = { color = "#77DD77" },
+							PERF = { color = "#B1A2CA" },
+						},
+					})
+					keymap.set("n", "]t", todo.jump_next, { desc = "Next todo comment" })
+					keymap.set("n", "[t", todo.jump_prev, { desc = "Previous todo comment" })
 				end,
 			},
 			{
@@ -471,7 +487,7 @@ vim.lsp.config["pyright"] = {
 				typeCheckingMode = "strict",
 			},
 			venvPath = ".",
-			venv = ".",
+			venv = ".venv",
 		},
 	},
 	on_attach = function(client, bufnr)
@@ -512,6 +528,9 @@ vim.lsp.config["clangd"] = {
 	cmd = { "clangd", "--background-index" },
 	filetypes = { "c", "cpp" },
 	root_markers = { "compile_commands.json", "compile_flags.txt" },
+	on_attach = function()
+		vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { noremap = true, silent = true })
+	end,
 }
 
 vim.lsp.enable({ "luals", "ruff", "pyright", "rust-analyzer", "clangd" })
