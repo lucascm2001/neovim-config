@@ -263,7 +263,7 @@ require("lazy").setup({
 					require("luasnip.loaders.from_vscode").lazy_load()
 
 					cmp.setup({
-
+						preselect = cmp.PreselectMode.None,
 						completion = {
 							completeopt = "menu,menuone,preview,noselect",
 						},
@@ -299,6 +299,7 @@ require("lazy").setup({
 					})
 				end,
 			},
+			{ "hrsh7th/cmp-nvim-lsp", lazy = false },
 			{
 				"windwp/nvim-autopairs",
 				event = { "InsertEnter" },
@@ -432,6 +433,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		end
 	end,
 })
+
+-- Connect the capabilities
+local cmp_nvim_lsp = require("cmp_nvim_lsp")
+local capabilities = cmp_nvim_lsp.default_capabilities()
 ---- LSP ----
 
 -- Lua LSP
@@ -440,6 +445,7 @@ vim.lsp.config["luals"] = {
 	filetypes = { "lua" },
 	root_markers = { ".luarc.json", ".git", ".luacheckrc", ".stylua.toml", "stylua.toml" },
 	settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } } } },
+	capabilities = capabilities,
 }
 
 -- Python LSP
@@ -447,6 +453,7 @@ vim.lsp.config["ruff"] = {
 	cmd = { "ruff", "server" },
 	filetypes = { "python" },
 	root_markers = { ".git", "pyproject.toml" },
+	capabilities = capabilities,
 }
 
 -- Helper function for Pyright LSP
@@ -469,6 +476,7 @@ end
 vim.lsp.config["pyright"] = {
 	cmd = { "pyright-langserver", "--stdio" },
 	filetypes = { "python" },
+	capabilities = capabilities,
 	root_markers = {
 		"pyproject.toml",
 		"setup.py",
@@ -521,6 +529,7 @@ vim.lsp.config["rust-analyzer"] = {
 	filetypes = { "rust" },
 	root_markers = { ".git", "Cargo.toml" },
 	single_file_support = true,
+	capabilities = capabilities,
 }
 
 -- C/C++ LSP
@@ -528,6 +537,7 @@ vim.lsp.config["clangd"] = {
 	cmd = { "clangd", "--background-index" },
 	filetypes = { "c", "cpp" },
 	root_markers = { "compile_commands.json", "compile_flags.txt" },
+	capabilities = capabilities,
 	on_attach = function()
 		vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { noremap = true, silent = true })
 	end,
