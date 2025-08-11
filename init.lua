@@ -418,6 +418,97 @@ require("lazy").setup({
 					{ "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
 				},
 			},
+			{
+				"lervag/vimtex",
+				lazy = false, -- we don't want to lazy load vimTeX
+			},
+			{ -- Configuration for debuggers
+				"mfussenegger/nvim-dap",
+				event = "VeryLazy",
+				dependencies = {
+					"rcarriga/nvim-dap-ui",
+					"nvim-neotest/nvim-nio",
+					"jay-babu/mason-nvim-dap.nvim",
+					"theHamsta/nvim-dap-virtual-text",
+				},
+				config = function()
+					local mason_dap = require("mason-nvim-dap")
+					local dap = require("dap")
+					local ui = require("dapui")
+					local dap_virtual_text = require("nvim-dap-virtual-text")
+
+					-- Dap Virtual Text
+					dap_virtual_text.setup()
+
+					mason_dap.setup({
+						ensure_installed = { "python" },
+						automatic_installation = true,
+						handlers = {
+							function(config)
+								require("mason-nvim-dap").default_setup(config)
+							end,
+						},
+					})
+
+					dap.configurations = {
+						python = {
+							{
+								-- The first three options are required by nvim-dap
+								type = "python", -- the type here established link to the adapter definition
+								request = "launch",
+								name = "Launch file",
+
+								-- Options below are for debugpy
+								program = "${file}",
+								pythonPath = function()
+									-- Launching application from virtual environment
+									local cwd = vim.fn.getcwd()
+									if vim.fn.executable(cwd .. "/.venv/Scripts/python") == 1 then
+										return cwd .. "/.venv/Scripts/python"
+									else
+										return "C:/Program Files/Python313/python.exe"
+									end
+								end,
+							},
+						},
+					}
+					-- Dap UI
+
+					ui.setup()
+
+					vim.fn.sign_define("DapBreakpoint", { text = "🐞" })
+
+					dap.listeners.before.attach.dapui_config = function()
+						ui.open()
+					end
+					dap.listeners.before.launch.dapui_config = function()
+						ui.open()
+					end
+					dap.listeners.before.event_terminated.dapui_config = function()
+						ui.close()
+					end
+					dap.listeners.before.event_exited.dapui_config = function()
+						ui.close()
+					end
+					-- Debugger keymaps
+					-- keymap.set("n", "<leader>b", { group = "Debugger", nowait = true, remap = false })
+					keymap.set(
+						"n",
+						"<leader>bt",
+						dap.toggle_breakpoint,
+						{ nowait = true, remap = false, desc = "Toggle breakpoint" }
+					)
+					keymap.set("n", "<leader>bc", dap.continue, { nowait = true, remap = false, desc = "Continue" })
+					keymap.set("n", "<leader>bi", dap.step_into, { nowait = true, remap = false, desc = "Step into" })
+					keymap.set("n", "<leader>bo", dap.step_over, { nowait = true, remap = false, desc = "Step over" })
+					keymap.set("n", "<leader>bu", dap.step_out, { nowait = true, remap = false, desc = "Step out" })
+					keymap.set("n", "<leader>bq", function()
+						dap.terminate()
+						ui.close()
+						dap_virtual_text.toggle()
+					end, { nowait = true, remap = false, desc = "Terminate" })
+				end,
+			},
 		},
 	},
 	{ colorscheme = { "catppuccin" } },
@@ -425,14 +516,14 @@ require("lazy").setup({
 })
 
 ---- Enables autocomplete for the LSP ----
-vim.api.nvim_create_autocmd("LspAttach", {
-	callback = function(ev)
-		local client = vim.lsp.get_client_by_id(ev.data.client_id)
-		if client:supports_method("textDocument/completion") then
-			vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
-		end
-	end,
-})
+-- vim.api.nvim_create_autocmd("LspAttach", {
+-- 	callback = function(ev)
+-- 		local client = vim.lsp.get_client_by_id(ev.data.client_id)
+-- 		if client:supports_method("textDocument/completion") then
+-- 			vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
+-- 		end
+-- 	end,
+-- })
 
 -- Connect the capabilities
 local cmp_nvim_lsp = require("cmp_nvim_lsp")
@@ -530,6 +621,14 @@ vim.lsp.config["rust-analyzer"] = {
 	root_markers = { ".git", "Cargo.toml" },
 	single_file_support = true,
 	capabilities = capabilities,
+	on_attach = function(_, bufnr)
+		vim.keymap.set(
+			"n",
+			"gd",
+			vim.lsp.buf.definition,
+			{ buffer = bufnr, noremap = true, silent = true, desc = "Go to definition" }
+		)
+	end,
 }
 
 -- C/C++ LSP
@@ -539,7 +638,7 @@ vim.lsp.config["clangd"] = {
 	root_markers = { "compile_commands.json", "compile_flags.txt" },
 	capabilities = capabilities,
 	on_attach = function()
-		vim.keymap.set("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", { noremap = true, silent = true })
+		vim.keymap.set("n", "gd", vim.lsp.buf.definition, { noremap = true, silent = true, desc = "Go to definition" })
 	end,
 }
 
