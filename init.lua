@@ -348,6 +348,7 @@ require("lazy").setup({
 							rust = { "rustfmt" },
 							c = { "clang-format" },
 							cpp = { "clang-format" },
+							typst = { "typstyle" },
 						},
 						format_on_save = {
 							lsp_fallback = true,
@@ -381,6 +382,7 @@ require("lazy").setup({
 
 					lint.linters_by_ft = {
 						python = { "ruff" },
+						json = { "jsonlint" },
 					}
 
 					local lint_augroup = vim.api.nvim_create_augroup("lint", { clear = true })
@@ -445,7 +447,21 @@ require("lazy").setup({
 						automatic_installation = true,
 						handlers = {
 							function(config)
+								-- all sources with no handler get passed here
+
+								-- Keep original functionality
 								require("mason-nvim-dap").default_setup(config)
+							end,
+							python = function(config)
+								config.adapters = {
+									type = "executable",
+									command = "./.venv/Scripts/python.exe",
+									args = {
+										"-m",
+										"debugpy.adapter",
+									},
+								}
+								require("mason-nvim-dap").default_setup(config) -- don't forget this!
 							end,
 						},
 					})
@@ -642,7 +658,15 @@ vim.lsp.config["clangd"] = {
 	end,
 }
 
-vim.lsp.enable({ "luals", "ruff", "pyright", "rust-analyzer", "clangd" })
+-- Typst LSP
+vim.lsp.config["tinymist"] = {
+	cmd = { "tinymist" },
+	filetypes = { "typst" },
+	root_markers = { "main.typ" },
+	capabilities = capabilities,
+}
+
+vim.lsp.enable({ "luals", "ruff", "pyright", "rust-analyzer", "clangd", "tinymist" })
 vim.cmd([[colorscheme catppuccin]]) -- enables the catppuccin theme
 
 ---- Key mappings for LSPs ----
