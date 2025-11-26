@@ -300,6 +300,38 @@ require("lazy").setup({
 				end,
 			},
 			{ "hrsh7th/cmp-nvim-lsp", lazy = false },
+			{ -- Command line auto completion
+				"hrsh7th/cmp-cmdline",
+				dependencies = { "hrsh7th/nvim-cmp" },
+				event = "VeryLazy",
+				config = function()
+					local cmp = require("cmp")
+
+					-- Search completion (/, ?)
+					cmp.setup.cmdline({ "/", "?" }, {
+						mapping = cmp.mapping.preset.cmdline(),
+						sources = {
+							{ name = "buffer" },
+						},
+					})
+
+					-- Command completion (:)
+					cmp.setup.cmdline(":", {
+						mapping = cmp.mapping.preset.cmdline(),
+						sources = cmp.config.sources({
+							{ name = "path" },
+						}, {
+							{
+								name = "cmdline",
+								option = {
+									ignore_cmds = { "Man", "!" },
+								},
+							},
+						}),
+						matching = { disallow_symbol_nonprefix_matching = false },
+					})
+				end,
+			},
 			{
 				"windwp/nvim-autopairs",
 				event = { "InsertEnter" },
@@ -419,6 +451,12 @@ require("lazy").setup({
 				keys = {
 					{ "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
 				},
+			},
+			{
+				"chomosuke/typst-preview.nvim",
+				lazy = false,
+				version = "1.*",
+				opts = {},
 			},
 			{
 				"lervag/vimtex",
@@ -637,6 +675,13 @@ vim.lsp.config["rust-analyzer"] = {
 	root_markers = { ".git", "Cargo.toml" },
 	single_file_support = true,
 	capabilities = capabilities,
+	settings = {
+		["rust-analyzer"] = {
+			check = {
+				command = "clippy",
+			},
+		},
+	},
 	on_attach = function(_, bufnr)
 		vim.keymap.set(
 			"n",
