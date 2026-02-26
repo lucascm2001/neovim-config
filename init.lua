@@ -114,13 +114,26 @@ require("lazy").setup({
 				dependencies = "nvim-tree/nvim-web-devicons", -- File Explorer
 				config = function()
 					local nvimtree = require("nvim-tree")
-
+					-- require("nvim-tree").setup({
+					--   filesystem_watchers = {
+					--     ignore_dirs = {
+					--       "target",
+					--       ".git",
+					--       "node_modules",
+					--     },
+					--   },
+					-- })
 					-- recommended settings from nvim-tree documentation
 					vim.g.loaded_netrw = 1
 					vim.g.loaded_netrwPlugin = 1
 					nvimtree.setup({
 						view = { width = 35, relativenumber = true },
 						git = { enable = true, ignore = false, timeout = 1500 }, -- Shows gitignored files
+						filesystem_watchers = {
+							ignore_dirs = {
+								"target",
+							},
+						},
 					})
 					-- set keymaps for nvim-tree
 					keymap.set("n", "<leader>ee", "<cmd>NvimTreeToggle<CR>", { desc = "Toggle file explorer" }) -- toggle file explorer
@@ -385,7 +398,7 @@ require("lazy").setup({
 						format_on_save = {
 							lsp_fallback = true,
 							async = false,
-							timeout_ms = 1000,
+							timeout_ms = 3000,
 						},
 					})
 
