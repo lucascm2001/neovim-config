@@ -49,6 +49,9 @@ vim.o.shell = "pwsh.exe"
 vim.o.shellcmdflag = "-nologo -noprofile -ExecutionPolicy RemoteSigned -command"
 vim.o.shellxquote = ""
 
+-- session options recommended by auto-session
+vim.o.sessionoptions = "blank,buffers,curdir,folds,help,tabpages,winsize,winpos,terminal,localoptions"
+
 ---- KEYMAPS ----
 
 -- set leader key to space
@@ -173,9 +176,14 @@ require("lazy").setup({
 				opts = {},
 			},
 			{
-				"nvim-telescope/telescope.nvim",
-				branch = "0.1.x",
-				dependencies = { "nvim-lua/plenary.nvim", "nvim-tree/nvim-web-devicons" }, -- fuzzy finder for file exploration
+				"nvim-telescope/telescope.nvim", -- fuzzy finder for file exploration
+				version = "*",
+				dependencies = {
+					"nvim-lua/plenary.nvim",
+					"nvim-tree/nvim-web-devicons",
+					{ "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
+					"sharkdp/fd",
+				},
 				config = function()
 					local telescope = require("telescope")
 					local actions = require("telescope.actions")
@@ -191,7 +199,7 @@ require("lazy").setup({
 							},
 						},
 					})
-					-- telescope.load_extension("fzf")
+					telescope.load_extension("fzf")
 					keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>", { desc = "Fuzzy find files in cwd" })
 					keymap.set("n", "<leader>fr", "<cmd>Telescope oldfiles<cr>", { desc = "Fuzzy find recent files" })
 					keymap.set("n", "<leader>fs", "<cmd>Telescope live_grep<cr>", { desc = "Find string in cwd" })
