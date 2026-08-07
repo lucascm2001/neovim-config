@@ -89,7 +89,7 @@ keymap.set("t", "<leader><ESC>", "<C-\\><C-n>", { desc = "Exit terminal mode" })
 ---- LAZY VIM ----
 
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
-if not vim.loop.fs_stat(lazypath) then
+if not vim.uv.fs_stat(lazypath) then
 	vim.fn.system({
 		"git",
 		"clone",
@@ -212,40 +212,38 @@ require("lazy").setup({
 			{ "nvim-lualine/lualine.nvim", dependencies = { "nvim-tree/nvim-web-devicons" }, opts = {} }, -- Makes the status line at the bottom look nice
 			{
 				"nvim-treesitter/nvim-treesitter",
-				event = { "BufReadPre", "BufNewFile" },
-				build = ":TSUpdate",
-				dependencies = { "windwp/nvim-ts-autotag" },
-				config = function()
-					local treesitter = require("nvim-treesitter.configs")
-
-					-- configure treesitter
-					treesitter.setup({
-						-- enable syntax highlighting
-						highlight = { enable = true },
-						-- enable indentation
-						indent = { enable = true },
-						-- enable autotagging
-						autotag = { enable = true },
-
-						-- ensure these language parsers are installed
-						-- this causes issues..
-						ensure_installed = {
-							"json",
-							"markdown",
-							"bash",
-							"lua",
-							"vim",
-							"gitignore",
-							"c",
-							"cmake",
-							"cpp",
-							"html",
-							"powershell",
-							"python",
-							"toml",
-							"rust",
-						},
+				branch = "main",
+				init = function()
+					vim.api.nvim_create_autocmd("FileType", {
+						callback = function()
+							-- Enable treesitter highlighting and disable regex syntax
+							pcall(vim.treesitter.start)
+							-- Enable treesitter-based indentation
+							vim.bo.indentexpr = "v:lua.require'nvim-treesitter'.indentexpr()"
+						end,
 					})
+
+					-- Make sure all the language grammars below are installed
+					local ensure_installed = {
+						"c",
+						"cpp",
+						"json",
+						"latex",
+						"lua",
+						"markdown",
+						"matlab",
+						"python",
+						"rust",
+						"typst",
+						"yaml",
+					}
+					local already_installed = require("nvim-treesitter.config").get_installed()
+					local parsers_to_install = vim.iter(ensure_installed)
+						:filter(function(parser)
+							return not vim.tbl_contains(already_installed, parser)
+						end)
+						:totable()
+					require("nvim-treesitter").install(parsers_to_install)
 				end,
 			},
 			{
@@ -384,6 +382,11 @@ require("lazy").setup({
 					local conform = require("conform")
 
 					conform.setup({
+						formatters = {
+							["clang-format"] = {
+								command = "C:/Qt/Qt5.15.2/Tools/QtCreator/bin/clang/bin/clang-format.exe",
+							},
+						},
 						formatters_by_ft = {
 							json = { "prettier" },
 							yaml = { "prettier" },
@@ -444,7 +447,7 @@ require("lazy").setup({
 					end, { desc = "Trigger linting for current file" })
 				end,
 			},
-			{ "lewis6991/gitsigns.nvim", opt = {} },
+			{ "lewis6991/gitsigns.nvim", opts = {} },
 			{
 				"kdheepak/lazygit.nvim",
 				lazy = true,
@@ -474,6 +477,15 @@ require("lazy").setup({
 			{
 				"lervag/vimtex",
 				lazy = false, -- we don't want to lazy load vimTeX
+			},
+			{
+				"rmagatti/auto-session",
+				lazy = false,
+
+				--- enables autocompletes for opts
+				opts = {
+					suppressed_dirs = { "~/", "~/Documents/dev", "~/Downloads", "/" },
+				},
 			},
 			{ -- Configuration for debuggers
 				"mfussenegger/nvim-dap",
@@ -506,7 +518,7 @@ require("lazy").setup({
 							python = function(config)
 								config.adapters = {
 									type = "executable",
-									command = "./.venv/Scripts/python.exe",
+									command = vim.fn.exepath("python"),
 									args = {
 										"-m",
 										"debugpy.adapter",
@@ -543,7 +555,7 @@ require("lazy").setup({
 
 					ui.setup()
 
-					vim.fn.sign_define("DapBreakpoint", { text = "🐞" })
+					-- vim.fn.sign_define("DapBreakpoint", { text = "🐞" })
 
 					dap.listeners.before.attach.dapui_config = function()
 						ui.open()
@@ -614,63 +626,12 @@ vim.lsp.config["ruff"] = {
 	capabilities = capabilities,
 }
 
--- Helper function for Pyright LSP
-local function set_python_path(path)
-	local clients = vim.lsp.get_clients({
-		bufnr = vim.api.nvim_get_current_buf(),
-		name = "pyright",
-	})
-	for _, client in ipairs(clients) do
-		if client.settings then
-			client.settings.python = vim.tbl_deep_extend("force", client.settings.python, { pythonPath = path })
-		else
-			client.config.settings =
-				vim.tbl_deep_extend("force", client.config.settings, { python = { pythonPath = path } })
-		end
-		client.notify("workspace/didChangeConfiguration", { settings = nil })
-	end
-end
-
-vim.lsp.config["pyright"] = {
-	cmd = { "pyright-langserver", "--stdio" },
+vim.lsp.config["ty"] = {
+	cmd = { "ty", "server" },
 	filetypes = { "python" },
+	root_markers = { "ty.toml", "pyproject.toml", ".git" },
 	capabilities = capabilities,
-	root_markers = {
-		"pyproject.toml",
-		"setup.py",
-		"setup.cfg",
-		"requirements.txt",
-		"Pipfile",
-		"pyrightconfig.json",
-		".git",
-	},
-	settings = {
-		python = {
-			analysis = {
-				autoSearchPaths = true,
-				useLibraryCodeForTypes = true,
-				diagnosticMode = "openFilesOnly",
-				typeCheckingMode = "strict",
-			},
-			venvPath = ".",
-			venv = ".venv",
-		},
-	},
-	on_attach = function(client, bufnr)
-		-- Ruff already handles all import organization
-		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightOrganizeImports", function()
-			client:exec_cmd({
-				command = "pyright.organizeimports",
-				arguments = { vim.uri_from_bufnr(bufnr) },
-			})
-		end, {
-			desc = "Organize Imports",
-		})
-		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightSetPythonPath", set_python_path, {
-			desc = "Reconfigure pyright with the provided python path",
-			nargs = 1,
-			complete = "file",
-		})
+	on_attach = function(_, bufnr)
 		vim.api.nvim_buf_set_keymap(
 			bufnr,
 			"n",
@@ -680,6 +641,73 @@ vim.lsp.config["pyright"] = {
 		)
 	end,
 }
+
+-- Helper function for Pyright LSP
+-- local function set_python_path(path)
+-- 	local clients = vim.lsp.get_clients({
+-- 		bufnr = vim.api.nvim_get_current_buf(),
+-- 		name = "pyright",
+-- 	})
+-- 	for _, client in ipairs(clients) do
+-- 		if client.settings then
+-- 			client.settings.python = vim.tbl_deep_extend("force", client.settings.python, { pythonPath = path })
+-- 		else
+-- 			client.config.settings =
+-- 				vim.tbl_deep_extend("force", client.config.settings, { python = { pythonPath = path } })
+-- 		end
+-- 		client.notify("workspace/didChangeConfiguration", { settings = nil })
+-- 	end
+-- end
+
+-- vim.lsp.config["pyright"] = {
+-- 	cmd = { "pyright-langserver", "--stdio" },
+-- 	filetypes = { "python" },
+-- 	capabilities = capabilities,
+-- 	root_markers = {
+-- 		"pyproject.toml",
+-- 		"setup.py",
+-- 		"setup.cfg",
+-- 		"requirements.txt",
+-- 		"Pipfile",
+-- 		"pyrightconfig.json",
+-- 		".git",
+-- 	},
+-- 	settings = {
+-- 		python = {
+-- 			analysis = {
+-- 				autoSearchPaths = true,
+-- 				useLibraryCodeForTypes = true,
+-- 				diagnosticMode = "openFilesOnly",
+-- 				typeCheckingMode = "strict",
+-- 			},
+-- 			venvPath = ".",
+-- 			venv = ".venv",
+-- 		},
+-- 	},
+-- 	on_attach = function(client, bufnr)
+-- 		-- Ruff already handles all import organization
+-- 		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightOrganizeImports", function()
+-- 			client:exec_cmd({
+-- 				command = "pyright.organizeimports",
+-- 				arguments = { vim.uri_from_bufnr(bufnr) },
+-- 			})
+-- 		end, {
+-- 			desc = "Organize Imports",
+-- 		})
+-- 		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightSetPythonPath", set_python_path, {
+-- 			desc = "Reconfigure pyright with the provided python path",
+-- 			nargs = 1,
+-- 			complete = "file",
+-- 		})
+-- 		vim.api.nvim_buf_set_keymap(
+-- 			bufnr,
+-- 			"n",
+-- 			"gd",
+-- 			"<cmd>lua vim.lsp.buf.definition()<CR>",
+-- 			{ noremap = true, silent = true }
+-- 		)
+-- 	end,
+-- }
 
 -- Rust LSP
 vim.lsp.config["rust-analyzer"] = {
@@ -722,9 +750,17 @@ vim.lsp.config["tinymist"] = {
 	filetypes = { "typst" },
 	root_markers = { "main.typ" },
 	capabilities = capabilities,
+	on_attach = function(_, bufnr)
+		vim.keymap.set(
+			"n",
+			"gd",
+			vim.lsp.buf.definition,
+			{ buffer = bufnr, noremap = true, silent = true, desc = "Go to definition" }
+		)
+	end,
 }
 
-vim.lsp.enable({ "luals", "ruff", "pyright", "rust-analyzer", "clangd", "tinymist" })
+vim.lsp.enable({ "luals", "ruff", "ty", "rust-analyzer", "clangd", "tinymist" })
 vim.cmd([[colorscheme catppuccin]]) -- enables the catppuccin theme
 
 ---- Key mappings for LSPs ----
