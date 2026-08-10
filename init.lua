@@ -261,95 +261,43 @@ require("lazy").setup({
 				opts = { indent = { char = "┊" } },
 			}, -- helps with indents
 			{
-				"hrsh7th/nvim-cmp",
-				event = "InsertEnter",
-				dependencies = {
-					"hrsh7th/cmp-buffer",
-					"hrsh7th/cmp-path",
-					{ "L3MON4D3/LuaSnip", version = "v2.*", build = "make install_jsregexp" },
-					"saadparwaiz1/cmp_luasnip", -- for autocompletion
-					"rafamadriz/friendly-snippets", -- useful snippets
-					"onsails/lspkind.nvim", -- vs code like pictograms
-				},
-				config = function()
-					local cmp = require("cmp")
-
-					local luasnip = require("luasnip")
-
-					local lspkind = require("lspkind")
-
-					-- loads vscode style snippets from installed plugins (e.g. friendly-snippets)
-					require("luasnip.loaders.from_vscode").lazy_load()
-
-					cmp.setup({
-						preselect = cmp.PreselectMode.None,
-						completion = {
-							completeopt = "menu,menuone,preview,noselect",
+				"saghen/blink.cmp",
+				dependencies = { "rafamadriz/friendly-snippets" },
+				version = "1.*",
+				---@module 'blink.cmp'
+				---@type blink.cmp.Config
+				opts = {
+					keymap = { preset = "enter" },
+					appearance = { nerd_font_variant = "mono" },
+					completion = {
+						documentation = { auto_show = true },
+						-- list = { selection = { preselect = false } },
+					},
+					cmdline = {
+						keymap = {
+							["<Tab>"] = { "accept" },
+							["<CR>"] = { "accept_and_enter", "fallback" },
 						},
-						snippet = { -- configure how nvim-cmp interacts with snippet engine
-							expand = function(args)
-								luasnip.lsp_expand(args.body)
-							end,
-						},
-						mapping = cmp.mapping.preset.insert({
-							["<C-k>"] = cmp.mapping.select_prev_item(), -- previous suggestion
-							["<C-j>"] = cmp.mapping.select_next_item(), -- next suggestion
-							["<C-b>"] = cmp.mapping.scroll_docs(-4),
-							["<C-f>"] = cmp.mapping.scroll_docs(4),
-							["<C-Space>"] = cmp.mapping.complete(), -- show completion suggestions
-							["<C-e>"] = cmp.mapping.abort(), -- close completion window
-							["<CR>"] = cmp.mapping.confirm({ select = false }),
-						}),
-						-- sources for autocompletion
-						sources = cmp.config.sources({
-							{ name = "nvim_lsp" },
-							{ name = "luasnip" }, -- snippets
-							{ name = "buffer" }, -- text within current buffer
-							{ name = "path" }, -- file system paths
-						}),
-
-						-- configure lspkind for vs-code like pictograms in completion menu
-						formatting = {
-							format = lspkind.cmp_format({
-								maxwidth = 50,
-								ellipsis_char = "...",
-							}),
-						},
-					})
-				end,
-			},
-			{ "hrsh7th/cmp-nvim-lsp", lazy = false },
-			{ -- Command line auto completion
-				"hrsh7th/cmp-cmdline",
-				dependencies = { "hrsh7th/nvim-cmp" },
-				event = "VeryLazy",
-				config = function()
-					local cmp = require("cmp")
-
-					-- Search completion (/, ?)
-					cmp.setup.cmdline({ "/", "?" }, {
-						mapping = cmp.mapping.preset.cmdline(),
-						sources = {
-							{ name = "buffer" },
-						},
-					})
-
-					-- Command completion (:)
-					cmp.setup.cmdline(":", {
-						mapping = cmp.mapping.preset.cmdline(),
-						sources = cmp.config.sources({
-							{ name = "path" },
-						}, {
-							{
-								name = "cmdline",
-								option = {
-									ignore_cmds = { "Man", "!" },
-								},
+						-- (optionally) automatically show the menu
+						completion = { menu = { auto_show = true } },
+					},
+					sources = {
+						default = { "lsp", "path", "snippets", "buffer" },
+						providers = {
+							cmdline = {
+								min_keyword_length = function(ctx)
+									-- when typing a command, only show when the keyword is 3 characters or longer
+									if ctx.mode == "cmdline" and string.find(ctx.line, " ") == nil then
+										return 3
+									end
+									return 0
+								end,
 							},
-						}),
-						matching = { disallow_symbol_nonprefix_matching = false },
-					})
-				end,
+						},
+					},
+					fuzzy = { implementation = "prefer_rust_with_warning" },
+				},
+				opts_extend = { "sources.default" },
 			},
 			{
 				"windwp/nvim-autopairs",
@@ -407,15 +355,14 @@ require("lazy").setup({
 							typst = { "typstyle" },
 						},
 						format_on_save = {
-							lsp_fallback = true,
-							async = false,
+							lsp_format = "fallback",
 							timeout_ms = 3000,
 						},
 					})
 
 					vim.keymap.set({ "n", "v" }, "<leader>mp", function()
 						conform.format({
-							lsp_fallback = true,
+							lsp_format = "fallback",
 							async = false,
 							timeout_ms = 1000,
 						})
@@ -602,19 +549,6 @@ require("lazy").setup({
 	checker = { enabled = true },
 })
 
----- Enables autocomplete for the LSP ----
--- vim.api.nvim_create_autocmd("LspAttach", {
--- 	callback = function(ev)
--- 		local client = vim.lsp.get_client_by_id(ev.data.client_id)
--- 		if client:supports_method("textDocument/completion") then
--- 			vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
--- 		end
--- 	end,
--- })
-
--- Connect the capabilities
-local cmp_nvim_lsp = require("cmp_nvim_lsp")
-local capabilities = cmp_nvim_lsp.default_capabilities()
 ---- LSP ----
 
 -- Lua LSP
@@ -623,22 +557,19 @@ vim.lsp.config["luals"] = {
 	filetypes = { "lua" },
 	root_markers = { ".luarc.json", ".git", ".luacheckrc", ".stylua.toml", "stylua.toml" },
 	settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } } } },
-	capabilities = capabilities,
 }
 
 -- Python LSP
-vim.lsp.config["ruff"] = {
-	cmd = { "ruff", "server" },
-	filetypes = { "python" },
-	root_markers = { ".git", "pyproject.toml" },
-	capabilities = capabilities,
-}
+-- vim.lsp.config["ruff"] = {
+-- 	cmd = { "ruff", "server" },
+-- 	filetypes = { "python" },
+-- 	root_markers = { ".git", "pyproject.toml" },
+-- }
 
 vim.lsp.config["ty"] = {
 	cmd = { "ty", "server" },
 	filetypes = { "python" },
 	root_markers = { "ty.toml", "pyproject.toml", ".git" },
-	capabilities = capabilities,
 	on_attach = function(_, bufnr)
 		vim.api.nvim_buf_set_keymap(
 			bufnr,
@@ -670,7 +601,6 @@ vim.lsp.config["ty"] = {
 -- vim.lsp.config["pyright"] = {
 -- 	cmd = { "pyright-langserver", "--stdio" },
 -- 	filetypes = { "python" },
--- 	capabilities = capabilities,
 -- 	root_markers = {
 -- 		"pyproject.toml",
 -- 		"setup.py",
@@ -723,7 +653,6 @@ vim.lsp.config["rust-analyzer"] = {
 	filetypes = { "rust" },
 	root_markers = { ".git", "Cargo.toml" },
 	single_file_support = true,
-	capabilities = capabilities,
 	settings = {
 		["rust-analyzer"] = {
 			check = {
@@ -745,8 +674,7 @@ vim.lsp.config["rust-analyzer"] = {
 vim.lsp.config["clangd"] = {
 	cmd = { "clangd", "--background-index" },
 	filetypes = { "c", "cpp" },
-	root_markers = { "compile_commands.json", "compile_flags.txt" },
-	capabilities = capabilities,
+	root_markers = { "compile_commands.json", "compile_flags.txt", ".git" },
 	on_attach = function()
 		vim.keymap.set("n", "gd", vim.lsp.buf.definition, { noremap = true, silent = true, desc = "Go to definition" })
 	end,
@@ -756,8 +684,7 @@ vim.lsp.config["clangd"] = {
 vim.lsp.config["tinymist"] = {
 	cmd = { "tinymist" },
 	filetypes = { "typst" },
-	root_markers = { "main.typ" },
-	capabilities = capabilities,
+	root_markers = { "main.typ", ".git" },
 	on_attach = function(_, bufnr)
 		vim.keymap.set(
 			"n",
