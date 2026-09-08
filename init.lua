@@ -69,7 +69,7 @@ keymap.set("i", "jj", "<ESC>", { desc = "Exit insert mode with jj" })
 keymap.set("n", "<leader>nh", ":nohl<CR>", { desc = "Clear search highlights" })
 
 -- delete single character without copying into register
--- keymap.set("n", "x", '"_x')
+keymap.set("n", "x", '"_x')
 
 -- increment/decrement numbers
 keymap.set("n", "<leader>+", "<C-a>", { desc = "Increment number" }) -- increment
@@ -112,9 +112,9 @@ require("lazy").setup({
 			{ "nvim-lua/plenary.nvim" }, -- lua functions that many plugins use
 			{ "christoomey/vim-tmux-navigator" }, -- tmux & split window navigation within neovim
 			{ "catppuccin/nvim", name = "catppuccin", priority = 1000 }, -- catppuccin color theme :)
-			{
+			{ -- File Explorer
 				"nvim-tree/nvim-tree.lua",
-				dependencies = "nvim-tree/nvim-web-devicons", -- File Explorer
+				dependencies = "nvim-tree/nvim-web-devicons",
 				config = function()
 					local nvimtree = require("nvim-tree")
 					-- require("nvim-tree").setup({
@@ -150,7 +150,7 @@ require("lazy").setup({
 					keymap.set("n", "<leader>er", "<cmd>NvimTreeRefresh<CR>", { desc = "Refresh file explorer" }) -- Refresh file explorer
 				end,
 			},
-			{
+			{ -- Highlighting todo comments
 				"folke/todo-comments.nvim",
 				dependencies = { "nvim-lua/plenary.nvim" },
 				opts = {},
@@ -166,59 +166,57 @@ require("lazy").setup({
 					keymap.set("n", "[t", todo.jump_prev, { desc = "Previous todo comment" })
 				end,
 			},
-			{
+			{ -- Opens up which keymaps are available
 				"folke/which-key.nvim",
-				event = "VeryLazy", -- Opens up which keymaps are available
+				event = "VeryLazy",
 				init = function()
 					vim.o.timeout = true
 					vim.o.timeoutlen = 500
 				end,
 				opts = {},
 			},
-			{
-				"nvim-telescope/telescope.nvim", -- fuzzy finder for file exploration
-				version = "*",
-				dependencies = {
-					"nvim-lua/plenary.nvim",
-					"nvim-tree/nvim-web-devicons",
-					{ "nvim-telescope/telescope-fzf-native.nvim", build = "make" },
-					"sharkdp/fd",
-				},
-				config = function()
-					local telescope = require("telescope")
-					local actions = require("telescope.actions")
+			{ -- Fuzzy finder for file exploration
+				"ibhagwan/fzf-lua",
+				dependencies = { "nvim-tree/nvim-web-devicons" },
+				---@module "fzf-lua"
+				---@type fzf-lua.Config|{}
+				---@diagnostic disable: missing-fields
+				opts = {},
+				---@diagnostic enable: missing-fields
+				config = function(_, opts)
+					require("fzf-lua").setup(opts)
 
-					telescope.setup({
-						defaults = {
-							path_display = { "smart" },
-							mappings = {
-								i = {
-									["<C-k>"] = actions.move_selection_previous,
-									["<C-j>"] = actions.move_selection_next,
-								},
-							},
-						},
-					})
-					telescope.load_extension("fzf")
-					keymap.set("n", "<leader>ff", "<cmd>Telescope find_files<cr>", { desc = "Fuzzy find files in cwd" })
-					keymap.set("n", "<leader>fr", "<cmd>Telescope oldfiles<cr>", { desc = "Fuzzy find recent files" })
-					keymap.set("n", "<leader>fs", "<cmd>Telescope live_grep<cr>", { desc = "Find string in cwd" })
+					keymap.set("n", "<leader>ff", "<cmd>FzfLua files<cr>", { desc = "Fuzzy find files in cwd" })
+					keymap.set("n", "<leader>fr", "<cmd>FzfLua resume<cr>", { desc = "Fuzzy find last search" })
+					keymap.set("n", "<leader>fs", "<cmd>FzfLua live_grep<cr>", { desc = "Find string in cwd" })
 					keymap.set(
 						"n",
 						"<leader>fc",
-						"<cmd>Telescope grep_string<cr>",
+						"<cmd>FzfLua grep_cword<cr>",
 						{ desc = "Find string under cursor in cwd" }
+					)
+					keymap.set(
+						"n",
+						"<leader>fd",
+						"<cmd>FzfLua lsp_document_symbols<cr>",
+						{ desc = "Find functions in file" }
+					)
+					keymap.set(
+						"n",
+						"<leader>D",
+						"<cmd>FzfLua diagnostics_document<cr>",
+						{ desc = "Show buffer diagnostics" }
 					)
 				end,
 			},
-			{
+			{ -- Makes the buffers at the top look nice
 				"akinsho/bufferline.nvim",
 				dependencies = { "nvim-tree/nvim-web-devicons" },
 				version = "*",
 				opts = { options = { mode = "tabs", separator_style = "slant" } },
-			}, -- Makes the buffers at the top look nice
+			},
 			{ "nvim-lualine/lualine.nvim", dependencies = { "nvim-tree/nvim-web-devicons" }, opts = {} }, -- Makes the status line at the bottom look nice
-			{
+			{ -- Enables file and text parsing for highlighting and other analyzations
 				"nvim-treesitter/nvim-treesitter",
 				branch = "main",
 				init = function()
@@ -254,13 +252,13 @@ require("lazy").setup({
 					require("nvim-treesitter").install(parsers_to_install)
 				end,
 			},
-			{
+			{ -- helps with indents
 				"lukas-reineke/indent-blankline.nvim",
 				event = { "BufReadPre", "BufNewFile" },
 				main = "ibl",
 				opts = { indent = { char = "┊" } },
-			}, -- helps with indents
-			{
+			},
+			{ -- Completion plugin with support for LSPs, cmdline, snippets, etc.
 				"saghen/blink.cmp",
 				dependencies = { "rafamadriz/friendly-snippets" },
 				version = "1.*",
@@ -281,9 +279,14 @@ require("lazy").setup({
 						keymap = {
 							["<Tab>"] = { "accept" },
 							["<CR>"] = { "accept_and_enter", "fallback" },
+							["<C-j>"] = { "select_next", "fallback_to_mappings" },
+							["<C-k>"] = { "select_prev", "fallback_to_mappings" },
 						},
 						-- (optionally) automatically show the menu
-						completion = { menu = { auto_show = true } },
+						completion = {
+							menu = { auto_show = true },
+							list = { selection = { preselect = false } },
+						},
 					},
 					sources = {
 						default = { "lsp", "path", "snippets", "buffer" },
@@ -303,10 +306,10 @@ require("lazy").setup({
 				},
 				opts_extend = { "sources.default" },
 			},
-			{
+			{ -- Auto closing pairs
 				"windwp/nvim-autopairs",
 				event = { "InsertEnter" },
-				dependencies = { "hrsh7th/nvim-cmp" }, -- auto closing pairs
+				dependencies = { "hrsh7th/nvim-cmp" },
 				config = function()
 					-- import nvim-autopairs
 					local autopairs = require("nvim-autopairs")
@@ -320,9 +323,9 @@ require("lazy").setup({
 					cmp.event:on("confirm_done", cmp_autopairs.on_confirm_done())
 				end,
 			},
-			{
+			{ -- Substitution plugin
 				"gbprod/substitute.nvim",
-				event = { "BufReadPre", "BufNewFile" }, -- substitution plugin
+				event = { "BufReadPre", "BufNewFile" },
 				config = function()
 					local substitute = require("substitute")
 					substitute.setup()
@@ -373,15 +376,15 @@ require("lazy").setup({
 					end, { desc = "Format file or range (in visual mode)" })
 				end,
 			},
-			{
-				"folke/trouble.nvim", -- Creates diagnostics for errors and warnings
+			{ -- Creates diagnostics for errors and warnings
+				"folke/trouble.nvim",
 				dependencies = { "nvim-tree/nvim-web-devicons" },
 				opts = {
 					focus = true,
 				},
 				cmd = "Trouble",
 			},
-			{
+			{ -- Linting plugin if not already handled by LSP
 				"mfussenegger/nvim-lint",
 				event = { "BufReadPre", "BufNewFile" },
 				config = function()
@@ -406,8 +409,8 @@ require("lazy").setup({
 					end, { desc = "Trigger linting for current file" })
 				end,
 			},
-			{ "lewis6991/gitsigns.nvim", opts = {} },
-			{
+			{ "lewis6991/gitsigns.nvim", opts = {} }, -- For git functionality
+			{ -- Easy-to-use git gui
 				"kdheepak/lazygit.nvim",
 				lazy = true,
 				cmd = {
@@ -427,7 +430,7 @@ require("lazy").setup({
 					{ "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
 				},
 			},
-			{
+			{ -- Previewing Typst content with PDF
 				"chomosuke/typst-preview.nvim",
 				lazy = false,
 				version = "1.*",
@@ -437,7 +440,7 @@ require("lazy").setup({
 				"lervag/vimtex",
 				lazy = false, -- we don't want to lazy load vimTeX
 			},
-			{
+			{ -- Reloads previous session
 				"rmagatti/auto-session",
 				lazy = false,
 
@@ -446,7 +449,7 @@ require("lazy").setup({
 					suppressed_dirs = { "~/", "~/Documents/dev", "~/Downloads", "/" },
 				},
 			},
-			{ -- Configuration for debuggers
+			{ -- Configuration for debuggers TODO: Fix this
 				"mfussenegger/nvim-dap",
 				event = "VeryLazy",
 				dependencies = {
@@ -585,72 +588,6 @@ vim.lsp.config["ty"] = {
 	end,
 }
 
--- Helper function for Pyright LSP
--- local function set_python_path(path)
--- 	local clients = vim.lsp.get_clients({
--- 		bufnr = vim.api.nvim_get_current_buf(),
--- 		name = "pyright",
--- 	})
--- 	for _, client in ipairs(clients) do
--- 		if client.settings then
--- 			client.settings.python = vim.tbl_deep_extend("force", client.settings.python, { pythonPath = path })
--- 		else
--- 			client.config.settings =
--- 				vim.tbl_deep_extend("force", client.config.settings, { python = { pythonPath = path } })
--- 		end
--- 		client.notify("workspace/didChangeConfiguration", { settings = nil })
--- 	end
--- end
-
--- vim.lsp.config["pyright"] = {
--- 	cmd = { "pyright-langserver", "--stdio" },
--- 	filetypes = { "python" },
--- 	root_markers = {
--- 		"pyproject.toml",
--- 		"setup.py",
--- 		"setup.cfg",
--- 		"requirements.txt",
--- 		"Pipfile",
--- 		"pyrightconfig.json",
--- 		".git",
--- 	},
--- 	settings = {
--- 		python = {
--- 			analysis = {
--- 				autoSearchPaths = true,
--- 				useLibraryCodeForTypes = true,
--- 				diagnosticMode = "openFilesOnly",
--- 				typeCheckingMode = "strict",
--- 			},
--- 			venvPath = ".",
--- 			venv = ".venv",
--- 		},
--- 	},
--- 	on_attach = function(client, bufnr)
--- 		-- Ruff already handles all import organization
--- 		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightOrganizeImports", function()
--- 			client:exec_cmd({
--- 				command = "pyright.organizeimports",
--- 				arguments = { vim.uri_from_bufnr(bufnr) },
--- 			})
--- 		end, {
--- 			desc = "Organize Imports",
--- 		})
--- 		vim.api.nvim_buf_create_user_command(bufnr, "LspPyrightSetPythonPath", set_python_path, {
--- 			desc = "Reconfigure pyright with the provided python path",
--- 			nargs = 1,
--- 			complete = "file",
--- 		})
--- 		vim.api.nvim_buf_set_keymap(
--- 			bufnr,
--- 			"n",
--- 			"gd",
--- 			"<cmd>lua vim.lsp.buf.definition()<CR>",
--- 			{ noremap = true, silent = true }
--- 		)
--- 	end,
--- }
-
 -- Rust LSP
 vim.lsp.config["rust-analyzer"] = {
 	cmd = { "rust-analyzer" },
@@ -703,7 +640,6 @@ vim.lsp.enable({ "luals", "ruff", "ty", "rust-analyzer", "clangd", "tinymist" })
 vim.cmd([[colorscheme catppuccin]]) -- enables the catppuccin theme
 
 ---- Key mappings for LSPs ----
-vim.keymap.set("n", "<leader>D", "<cmd>Telescope diagnostics bufnr=0<CR>", { desc = "Show buffer diagnostics" })
 vim.keymap.set("n", "<leader>d", vim.diagnostic.open_float, { desc = "Show line diagnostics " })
 vim.keymap.set("n", "K", vim.lsp.buf.hover, { desc = "Show diagnostics for what is under cursor" })
 
