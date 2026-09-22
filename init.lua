@@ -233,6 +233,7 @@ require("lazy").setup({
 					local ensure_installed = {
 						"c",
 						"cpp",
+						"html",
 						"json",
 						"latex",
 						"lua",
@@ -430,6 +431,15 @@ require("lazy").setup({
 					{ "<leader>lg", "<cmd>LazyGit<cr>", desc = "LazyGit" },
 				},
 			},
+			{ -- Markdown Viewer in terminal
+				"MeanderingProgrammer/render-markdown.nvim",
+				-- dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-mini/mini.nvim" }, -- if you use the mini.nvim suite
+				-- dependencies = { 'nvim-treesitter/nvim-treesitter', 'nvim-mini/mini.icons' },        -- if you use standalone mini plugins
+				dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" }, -- if you prefer nvim-web-devicons
+				---@module 'render-markdown'
+				---@type render.md.UserConfig
+				opts = {},
+			},
 			{ -- Previewing Typst content with PDF
 				"chomosuke/typst-preview.nvim",
 				lazy = false,
@@ -613,7 +623,19 @@ vim.lsp.config["rust-analyzer"] = {
 
 -- C/C++ LSP
 vim.lsp.config["clangd"] = {
-	cmd = { "clangd", "--background-index" },
+	cmd = {
+		"clangd",
+		"--background-index",
+		-- Always use the internal_app_iq_tuning_fw compile_commands.json regardless of which
+		-- subtree a buffer is opened from (w6sw vs iq_tuning_app vs sdk), instead of relying on
+		-- clangd's own upward directory search, which could otherwise be shadowed by a real
+		-- build tree's own compile_commands.json under w6sw/lx7_fw/build/*.
+		"--compile-commands-dir=C:/internal_app_iq_tuning_fw",
+		-- Trust the Xtensa xt-clang/xt-clang++ driver so clangd queries it for system include
+		-- paths/target info (it isn't auto-trusted since its name doesn't match the plain
+		-- clang/clang++/gcc/g++ patterns clangd allows by default).
+		"--query-driver=C:/usr/xtensa/XtDevTools/install/tools/*/XtensaTools/bin/xt-clang*",
+	},
 	filetypes = { "c", "cpp" },
 	root_markers = { "compile_commands.json", "compile_flags.txt", ".git" },
 	on_attach = function()
