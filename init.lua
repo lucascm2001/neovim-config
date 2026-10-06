@@ -346,11 +346,6 @@ require("lazy").setup({
 					local conform = require("conform")
 
 					conform.setup({
-						formatters = {
-							["clang-format"] = {
-								command = "C:/Qt/Qt5.15.2/Tools/QtCreator/bin/clang/bin/clang-format.exe",
-							},
-						},
 						formatters_by_ft = {
 							json = { "prettier" },
 							yaml = { "prettier" },
@@ -626,11 +621,13 @@ vim.lsp.config["clangd"] = {
 	cmd = {
 		"clangd",
 		"--background-index",
-		-- Always use the internal_app_iq_tuning_fw compile_commands.json regardless of which
-		-- subtree a buffer is opened from (w6sw vs iq_tuning_app vs sdk), instead of relying on
-		-- clangd's own upward directory search, which could otherwise be shadowed by a real
-		-- build tree's own compile_commands.json under w6sw/lx7_fw/build/*.
-		"--compile-commands-dir=C:/internal_app_iq_tuning_fw",
+		-- Always use the cmake/ build dir's compile_commands.json (the one `cmake -S . -G Ninja
+		-- -B cmake` regenerates -- see the top-level .gitignore) regardless of which subtree a
+		-- buffer is opened from (w6sw vs iq_tuning_app vs sdk), instead of relying on clangd's own
+		-- upward directory search, which could otherwise be shadowed by a real build tree's own
+		-- compile_commands.json under w6sw/lx7_fw/build/*. Pointing straight at cmake/ also means
+		-- there's no separate copy to keep in sync at the project root.
+		"--compile-commands-dir=C:/internal_app_iq_tuning_fw/cmake",
 		-- Trust the Xtensa xt-clang/xt-clang++ driver so clangd queries it for system include
 		-- paths/target info (it isn't auto-trusted since its name doesn't match the plain
 		-- clang/clang++/gcc/g++ patterns clangd allows by default).
